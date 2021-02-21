@@ -1,4 +1,11 @@
+---
 logging:
   level: INFO
   loggers:
     com.gitlab.rurouniwallace.notes: DEBUG
+
+upstreamTenacity:
+  health:
+    executionIsolationThreadTimeoutInMillis: 2000
+    threadpool:
+      threadPoolCoreSize: 10
