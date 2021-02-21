@@ -1,0 +1,4 @@
+logging:
+  level: INFO
+  loggers:
+    com.gitlab.rurouniwallace.notes: DEBUG
