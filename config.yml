@@ -9,3 +9,6 @@ upstreamTenacity:
     executionIsolationThreadTimeoutInMillis: 2000
     threadpool:
       threadPoolCoreSize: 10
+
+swagger:
+  resourcePackage: com.gitlab.rurouniwallace.notes.resources

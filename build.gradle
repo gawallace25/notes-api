@@ -20,6 +20,7 @@ dependencies {
     implementation 'io.dropwizard:dropwizard-core:2.0.19'
     implementation 'com.fasterxml.jackson.core:jackson-annotations:2.10.5'
     implementation 'com.yammer.tenacity:tenacity-core:1.2.0'
+    implementation 'com.smoketurner:dropwizard-swagger:1.0.0-rc2-1'
 }
 
 group = 'com.gitlab.rurouniwallace.notes'

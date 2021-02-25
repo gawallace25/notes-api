@@ -11,6 +11,8 @@ import io.dropwizard.configuration.EnvironmentVariableSubstitutor;
 import io.dropwizard.configuration.SubstitutingSourceProvider;
 import io.dropwizard.setup.Bootstrap;
 import io.dropwizard.setup.Environment;
+import io.federecio.dropwizard.swagger.SwaggerBundle;
+import io.federecio.dropwizard.swagger.SwaggerBundleConfiguration;
 
 public class NotesApiApplication extends Application<NotesApiConfiguration> {
 
@@ -27,6 +29,14 @@ public class NotesApiApplication extends Application<NotesApiConfiguration> {
     public void initialize(final Bootstrap<NotesApiConfiguration> bootstrap) {
     	bootstrap.setConfigurationSourceProvider(new SubstitutingSourceProvider(new YamlFileConfigurationSourceProvider(), new EnvironmentVariableSubstitutor(false)));
     
+    	bootstrap.addBundle(new SwaggerBundle<NotesApiConfiguration> () {
+
+			@Override
+			protected SwaggerBundleConfiguration getSwaggerBundleConfiguration(final NotesApiConfiguration configuration) {
+				return configuration.getSwagger();
+			}
+    	});
+    	
     	bootstrap.addBundle(TenacityBundleBuilder.<NotesApiConfiguration>newBuilder().configurationFactory(new NotesApiTenacityBundleConfigurationFactory()).build());
     }
 

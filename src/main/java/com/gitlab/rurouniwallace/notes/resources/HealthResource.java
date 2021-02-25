@@ -16,10 +16,14 @@ import com.gitlab.rurouniwallace.notes.command.HealthCommand;
 import com.gitlab.rurouniwallace.notes.health.Health;
 import io.dropwizard.setup.Environment;
 
+import io.swagger.annotations.Api;
+import io.swagger.annotations.ApiOperation;
+
 /**
  * API Health REST resource
  *
  */
+@Api("/health")
 @Path("/health")
 @Produces(MediaType.APPLICATION_JSON)
 public class HealthResource {
@@ -50,6 +54,7 @@ public class HealthResource {
 	 */
 	@GET
 	@Timed
+	@ApiOperation(value = "Perform a health check on the service", response = Health.class)
 	public void checkHealth(@Suspended final AsyncResponse response) {
 		CommandRunner.<Health>run(response, new HealthCommand(environment), LOGGER);
 	}
