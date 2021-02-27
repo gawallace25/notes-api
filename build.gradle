@@ -21,6 +21,21 @@ dependencies {
     implementation 'com.fasterxml.jackson.core:jackson-annotations:2.10.5'
     implementation 'com.yammer.tenacity:tenacity-core:1.2.0'
     implementation 'com.smoketurner:dropwizard-swagger:1.0.0-rc2-1'
+    implementation 'commons-dbutils:commons-dbutils:1.6'
+	implementation 'org.liquibase:liquibase-core:4.3.1'
+	implementation 'org.apache.commons:commons-dbcp2:2.8.0'
+	implementation 'org.hsqldb:hsqldb:2.5.1'
+	implementation 'org.bouncycastle:bcprov-jdk15on:1.68'
+	
+	// testing dependencies
+	testImplementation 'org.junit.jupiter:junit-jupiter-api:5.8.0-M1'
+	
+    testRuntimeOnly 'org.junit.jupiter:junit-jupiter-engine:5.3.1'
+
+}
+
+test {
+    useJUnitPlatform()
 }
 
 group = 'com.gitlab.rurouniwallace.notes'

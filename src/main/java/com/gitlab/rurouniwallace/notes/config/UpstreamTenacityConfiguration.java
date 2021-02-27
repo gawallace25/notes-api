@@ -12,6 +12,11 @@ public class UpstreamTenacityConfiguration {
 	 * Health check Tenacity configurations
 	 */
 	private TenacityConfiguration health;
+	
+	/**
+	 * SQL database Tenacity configurations
+	 */
+	private TenacityConfiguration sqlDb;
 
 	/**
 	 * @return the health
@@ -25,5 +30,19 @@ public class UpstreamTenacityConfiguration {
 	 */
 	public void setHealth(TenacityConfiguration health) {
 		this.health = health;
+	}
+
+	/**
+	 * @return the sqlDb
+	 */
+	public TenacityConfiguration getSqlDb() {
+		return sqlDb;
+	}
+
+	/**
+	 * @param sqlDb the sqlDb to set
+	 */
+	public void setSqlDb(TenacityConfiguration sqlDb) {
+		this.sqlDb = sqlDb;
 	}
 }

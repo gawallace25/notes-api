@@ -43,6 +43,7 @@ final ImmutableMap.Builder<TenacityPropertyKey, TenacityConfiguration> builder =
 		final UpstreamTenacityConfiguration upstreamTenacityConfig = configuration.getUpstreamTenacity();
 		
 		builder.put(NotesApiDependencyKeys.HEALTH, upstreamTenacityConfig.getHealth());
+		builder.put(NotesApiDependencyKeys.SQL_DB, upstreamTenacityConfig.getSqlDb());
 	
 		return builder.build();
 	}

@@ -9,6 +9,16 @@ upstreamTenacity:
     executionIsolationThreadTimeoutInMillis: 2000
     threadpool:
       threadPoolCoreSize: 10
+  sqlDb:
+    executionIsolationThreadTimeoutInMillis: 2000
+    threadpool:
+      threadPoolCoreSize: 10
 
 swagger:
   resourcePackage: com.gitlab.rurouniwallace.notes.resources
+
+sql:
+  connectionUrl: "jdbc:hsqldb:mem:myDb;sql.sql.syntax_pgs=true"
+
+security:
+  hashCost: 10

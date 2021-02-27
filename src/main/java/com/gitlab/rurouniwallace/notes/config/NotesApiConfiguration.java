@@ -21,6 +21,16 @@ public class NotesApiConfiguration extends Configuration {
 	 * Swagger settings
 	 */
 	private SwaggerBundleConfiguration swagger;
+	
+	/**
+	 * Security settings
+	 */
+	private SecurityConfiguration security;
+	
+	/**
+	 * SQL configurations
+	 */
+	private SqlFactory sql;
 
 	/**
 	 * @return the upstreamTenacity
@@ -48,5 +58,33 @@ public class NotesApiConfiguration extends Configuration {
 	 */
 	public void setSwagger(SwaggerBundleConfiguration swagger) {
 		this.swagger = swagger;
+	}
+
+	/**
+	 * @return the security
+	 */
+	public SecurityConfiguration getSecurity() {
+		return security;
+	}
+
+	/**
+	 * @param security the security to set
+	 */
+	public void setSecurity(SecurityConfiguration security) {
+		this.security = security;
+	}
+
+	/**
+	 * @return the sql
+	 */
+	public SqlFactory getSql() {
+		return sql;
+	}
+
+	/**
+	 * @param sql the sql to set
+	 */
+	public void setSql(SqlFactory sql) {
+		this.sql = sql;
 	}
 }

@@ -1,0 +1,26 @@
+<?xml version="1.0" encoding="UTF-8"?>  
+<databaseChangeLog  
+  xmlns="http://www.liquibase.org/xml/ns/dbchangelog"  
+  xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"  
+  xmlns:pro="http://www.liquibase.org/xml/ns/pro"  
+  xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-4.2.xsd
+      http://www.liquibase.org/xml/ns/pro http://www.liquibase.org/xml/ns/pro/liquibase-pro-4.2.xsd">  
+
+    <changeSet  author="gwallace"  id="a87c7ccd-f2b9-4884-91a7-89cf5fa7a227">
+        <createTable tableName="Users">
+        	<column name="uuid" type="uuid"> 
+        		<constraints primaryKey="true"/>
+        	</column> 
+            <column name="email"  type="VARCHAR(255)">
+            	<constraints unique="true"/>
+            </column>
+            <column name="phone" type="VARCHAR(16)"/>
+            <column name="password"  type="VARCHAR(255)"/> 
+            <column name="givenName" type="VARCHAR(255)"/>
+            <column name="surName" type="VARCHAR(255)"/>
+        </createTable>
+        <rollback>
+        	<dropTable tableName="Users"/>
+    	</rollback>
+    </changeSet>
+</databaseChangeLog>
