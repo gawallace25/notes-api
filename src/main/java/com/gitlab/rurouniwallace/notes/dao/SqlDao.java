@@ -6,8 +6,10 @@ import java.sql.Connection;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
+import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Base64;
-import java.util.Optional;
+import java.util.List;
 import java.util.UUID;
 
 import javax.sql.DataSource;
@@ -25,7 +27,20 @@ import org.bouncycastle.crypto.generators.BCrypt;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+/**
+ * Data access layer to communicate with an SQL database
+ */
 public class SqlDao implements IAccessesUsers {
+	
+	/**
+	 * Query for retrieving users from the database by email
+	 */
+	private static final String LOOKUP_USER_BY_EMAIL_STATEMENT = "SELECT * FROM Users WHERE email = ?";
+	
+	/**
+	 * Query for inserting users into the database
+	 */
+	private static final String INSERT_USER_STATEMENT = "INSERT INTO Users(uuid, email, password, phone, givenName, surname) VALUES (?, ?, ?, ?, ?, ?)";
 	
 	/**
 	 * Event logger
@@ -64,63 +79,26 @@ public class SqlDao implements IAccessesUsers {
 	 */
 	@Override
 	public User authenticateUser(final String email, final String password) throws DataAccessException, AuthenticationException {
-		Connection connection = null;
-		try {
-			connection = datasource.getConnection();
-		} catch (final SQLException e) {
+		final Connection connection = buildConnection();
+		
+		final ResultSet resultSet = runStatement(connection, LOOKUP_USER_BY_EMAIL_STATEMENT, Arrays.asList(email), true);
+		
+		final List<User> users = readUsersFromResultSet(resultSet);
+		
+		if (users.isEmpty()) {
 			DbUtils.closeQuietly(connection);
-			throw new DataAccessException("SQL Error Occurred", e);
-		}
-		
-		PreparedStatement lookupUserStatement = null;
-		
-		try {
-			lookupUserStatement = connection.prepareStatement("SELECT * FROM users WHERE email = ?");
-		} catch (SQLException e) {
-			DbUtils.closeQuietly(connection);
-			LOGGER.error("SQL error state: " + e.getSQLState());
-			throw new DataAccessException("SQL Error Occurred", e);
-		}
-		
-		ResultSet resultSet = null;
-		try {
-			lookupUserStatement.setString(1, email);
-			resultSet = lookupUserStatement.executeQuery();
-		} catch (final SQLException e) {
-			DbUtils.closeQuietly(connection);
-			LOGGER.error("SQL error state: " + e.getSQLState());
-			throw new DataAccessException("SQL Error Occurred", e);
-		}
-		
-		boolean userFound;
-		try {
-			userFound = resultSet.next();
-		} catch (SQLException e) {
-			LOGGER.error("SQL error state: " + e.getSQLState());
-			DbUtils.closeQuietly(connection);
-			throw new DataAccessException("SQL Error Occurred", e);
-		}
-		
-		if (!userFound) {
 			throw new AuthenticationDeniedException("User not found");
 		}
 		
-		User userFromDatabase;
-		try {
-			userFromDatabase = readUserFromResultSet(resultSet);
-		} catch (SQLException e) {
-			LOGGER.error("SQL error state: " + e.getSQLState());
-			throw new DataAccessException("SQL Error Occurred", e);
-		} finally {
-			DbUtils.closeQuietly(connection);
-			DbUtils.closeQuietly(resultSet);
-		}
+		final User userFromDatabase = users.get(0);
 		
 		final String hashedPassword = userFromDatabase.getPassword();
-		
 		if (!checkPassword(password, hashedPassword)) {
+			DbUtils.closeQuietly(connection);
 			throw new AuthenticationDeniedException("Passwords don't match");
 		}
+		
+		DbUtils.closeQuietly(connection);
 		
 		return userFromDatabase;
 	}
@@ -135,44 +113,28 @@ public class SqlDao implements IAccessesUsers {
 	@Override
 	public User registerUser(final User user) throws DataAccessException {
 		
-		Connection connection = null;
-		try {
-			connection = datasource.getConnection();
-		} catch (final SQLException e) {
-			DbUtils.closeQuietly(connection);
-			throw new DataAccessException("SQL Error Occurred", e);
-		}
+		final Connection connection = buildConnection();
 		
 		final UUID uuid = UUID.randomUUID();
 		
-		PreparedStatement insertUserStatement = null;
-		
 		try {
-			insertUserStatement = connection.prepareStatement("INSERT INTO users(uuid, email, password, phone, givenName, surname) VALUES (?, ?, ?, ?, ?, ?)");
-		} catch (final SQLException e) {
-			DbUtils.closeQuietly(connection);
-			LOGGER.error("SQL error state: " + e.getSQLState());
-			throw new DataAccessException("SQL Error Occurred", e);
-		}
-		
-		try {
-			insertUserStatement.setObject(1, uuid);
-			insertUserStatement.setString(2, user.getEmail());
-			insertUserStatement.setString(3, hashPassword(user.getPassword()));
-			insertUserStatement.setString(4, user.getPhone());
-			insertUserStatement.setString(5, user.getGivenName());
-			insertUserStatement.setString(6, user.getSurname());
-			
-			final int numRowsAffected = insertUserStatement.executeUpdate();
-			LOGGER.debug("Rows affected: " + numRowsAffected);
-		
-		} catch (final SQLException e) {
-			if (e.getSQLState().equals("23505")) {
-				throw new EntityAlreadyExistsException("A user with the provided email already exists", e);
-			}
-			throw new DataAccessException("SQL Error Occurred", e);
-		} catch (final GeneralSecurityException e) {
-			throw new DataAccessException("Password hashing failed", e);
+			runStatement(connection, INSERT_USER_STATEMENT, Arrays.asList(uuid, user.getEmail(), hashPassword(user.getPassword()), user.getPhone(), user.getGivenName(), user.getSurname()), false, new IHandlesSqlErrors() {
+
+				/**
+				 * Check for the SQL state to see if  a uniqueness constraint was violated
+				 * 
+				 * @param e the exception to handle
+				 */
+				@Override
+				public void handleError(final SQLException e) throws DataAccessException {
+					if (e.getSQLState().equals("23505")) {
+						throw new EntityAlreadyExistsException("A user with the provided email already exists", e);
+					}
+
+				}
+			});
+		}catch (final GeneralSecurityException e) {
+			throw new DataAccessException("Failed to hash password", e);
 		} finally {
 			DbUtils.closeQuietly(connection);
 		}
@@ -224,23 +186,149 @@ public class SqlDao implements IAccessesUsers {
 		
 		return parts[3].equals(Base64.getEncoder().encodeToString(hashedCheckPassword));
 	}
+
+	/**
+	 * Read users from a result set. The result set will be closed before the method
+	 * completes execution.
+	 * 
+	 * @param resultSet the SQL result set to read from
+	 * @return the list of users retrieved
+	 * @throws DataAccessException if reading from the result set failed.
+	 */
+	private List<User> readUsersFromResultSet(final ResultSet resultSet) throws DataAccessException {
+		final List<User> users = new ArrayList<User>();
+		
+		try {
+			while (resultSet.next()) {
+				final User user = new User();
+				user.setUuid((UUID) resultSet.getObject("uuid"));
+				user.setEmail(resultSet.getString("email"));
+				user.setPassword(resultSet.getString("password"));
+				user.setGivenName(resultSet.getString("givenName"));
+				user.setPhone(resultSet.getString("phone"));
+				user.setSurname(resultSet.getString("surname"));
+				
+				users.add(user);
+			}
+		} catch (final SQLException e) {
+			LOGGER.error("SQL error state: " + e.getSQLState());
+			throw new DataAccessException("Failed to read user from result set", e);
+		} finally {
+			DbUtils.closeQuietly(resultSet);
+		}
+		
+		return users;
+	}
 	
 	/**
-	 * Read a user from a JDBC result set
+	 * Build an SQL connection. Don't forget to close it after you're done!
 	 * 
-	 * @param resultSet result set to read from
-	 * @return user from result set
-	 * @throws SQLException if an error occurred reading from result set
+	 * @return a new database connection
+	 * @throws DataAccessException error occurred building the connection
 	 */
-	private User readUserFromResultSet(final ResultSet resultSet) throws SQLException {
-		final User user = new User();
-		user.setUuid((UUID) resultSet.getObject("uuid"));
-		user.setEmail(resultSet.getString("email"));
-		user.setPassword(resultSet.getString("password"));
-		user.setGivenName(resultSet.getString("givenName"));
-		user.setPhone(resultSet.getString("phone"));
-		user.setSurname(resultSet.getString("surname"));
+	private Connection buildConnection() throws DataAccessException {
 		
-		return user;
+		Connection connection;
+		try {
+			connection = datasource.getConnection();
+		} catch (final SQLException e) {
+			LOGGER.error("SQL error state: " + e.getSQLState());
+			throw new DataAccessException("SQL Error Occurred", e);
+		}
+		
+		return connection;
+	}
+	
+	/**
+	 * Run a database query using a prepared statement and bound variables
+	 * 
+	 * @param connection the database connection to run the query against
+	 * @param query the query to run
+	 * @param boundData the data to bind to the prepared statement
+	 * @param isQuery true if the statement is a query and is expected to return a result set (e.g. a SELECT statement)
+	 * @return the result set from the query
+	 * @throws DataAccessException error occurred running the query. The connection will be closed before the exception is thrown
+	 */
+	private ResultSet runStatement(final Connection connection,  final String query, List<Object> boundData, final boolean isQuery) throws DataAccessException {
+		return runStatement(connection, query, boundData, isQuery, new IHandlesSqlErrors() {
+
+			/**
+			 * Handle an error
+			 * 
+			 * @param e the exception
+			 * @throws DataAccessException not actually thrown here
+			 */
+			@Override
+			public void handleError(final SQLException e) throws DataAccessException {
+				// no handling
+			}
+			
+		});
+	}
+	
+	/**
+	 * Run a database query using a prepared statement and bound variables
+	 * 
+	 * @param connection the database connection to run the query against
+	 * @param query the query to run
+	 * @param boundData the data to bind to the prepared statement
+	 * @param queryErrorHandler handle an error that occurs as a result of running the query
+	 * @param isQuery true if the statement is a query and is expected to return a result set (e.g. a SELECT statement)
+	 * @return the result set from the query
+	 * @throws DataAccessException error occurred running the query. The connection will be closed before the exception is thrown
+	 */
+	private ResultSet runStatement(final Connection connection, final String query, List<Object> boundData, final boolean isQuery, final IHandlesSqlErrors queryErrorHandler) throws DataAccessException {
+		
+		PreparedStatement statement = null;
+		
+		try {
+			statement = connection.prepareStatement(query);
+		} catch (final SQLException e) {
+			LOGGER.error("SQL error state: " + e.getSQLState());
+			DbUtils.closeQuietly(connection);
+			throw new DataAccessException("SQL Error Occurred", e);
+		}
+		
+		ResultSet resultSet = null;
+		try {
+			int parameterIndex = 1;
+			for (final Object boundVar : boundData) {
+				setBoundVariable(statement, parameterIndex, boundVar);
+				parameterIndex++;
+			}
+			
+			if (isQuery) {
+				resultSet = statement.executeQuery();
+			} else {
+				statement.executeUpdate();
+			}
+			
+		
+		} catch (final SQLException e) {
+			LOGGER.error("SQL error state: " + e.getSQLState());
+			queryErrorHandler.handleError(e);
+			DbUtils.closeQuietly(connection);
+			throw new DataAccessException("SQL Error Occurred", e);
+		}
+		
+		return resultSet;
+	}
+	
+	/**
+	 * Bind a variable to a prepared statement
+	 * 
+	 * @param statement prepared SQL statement
+	 * @param parameterIndex parameter index within the context of the bound statement
+	 * @param boundVar the variable to bind to the prepared statement/query
+	 * @throws SQLException if binding variables fails
+	 */
+	private void setBoundVariable(final PreparedStatement statement, final int parameterIndex, final Object boundVar) throws SQLException {
+		if (boundVar instanceof String) {
+			LOGGER.debug("Binding String variable: " + boundVar);
+			statement.setString(parameterIndex, ((String)boundVar));
+		} else {
+			LOGGER.debug("Binding Object variable: " + boundVar);
+			statement.setObject(parameterIndex, boundVar);
+		}
 	}
 }
