@@ -72,7 +72,7 @@ public class UserController {
 			response.resume(buildErrorResponse(HttpStatus.UNPROCESSABLE_ENTITY_422, StatusCode.INVALID_ARGUMENTS, "UUID may not be asserted when creating a user"));
 		}
 		
-		if (user.getEmail() == null || user.getEmail().isBlank()) {
+		if (user.getEmail() == null || user.getEmail().isEmpty()) {
 			response.resume(buildErrorResponse(HttpStatus.UNPROCESSABLE_ENTITY_422, StatusCode.INVALID_ARGUMENTS, "Email address required"));
 		}
 		
